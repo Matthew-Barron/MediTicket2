@@ -31,7 +31,7 @@ The project follows a layered architecture consisting of:
 Insert the approved UML diagram below.
 
 ```markdown
-![MediTicket2 UML](docs/MediTicket2.png)
+![MediTicket2 UML](MediTicket2.png)
 ```
 
 ---
