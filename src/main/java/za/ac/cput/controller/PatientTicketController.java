@@ -1,5 +1,6 @@
 package za.ac.cput.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.domain.PatientTicket;
 import za.ac.cput.service.PatientTicketService;
@@ -12,6 +13,7 @@ public class PatientTicketController {
 
     private final PatientTicketService service;
 
+    @Autowired
     public PatientTicketController(PatientTicketService service) {
         this.service = service;
     }
