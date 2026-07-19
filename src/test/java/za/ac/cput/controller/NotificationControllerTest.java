@@ -13,7 +13,11 @@ import za.ac.cput.domain.Notification;
 import za.ac.cput.domain.PatientTicket;
 import za.ac.cput.domain.enums.NotificationStatus;
 import za.ac.cput.domain.enums.NotificationType;
+import za.ac.cput.domain.user.ClinicStaff;
+import za.ac.cput.domain.user.Doctor;
 import za.ac.cput.domain.user.Patient;
+import za.ac.cput.service.ClinicStaffService;
+import za.ac.cput.service.DoctorService;
 import za.ac.cput.service.NotificationService;
 import za.ac.cput.service.PatientService;
 
@@ -33,17 +37,27 @@ class NotificationControllerTest {
     @Mock
     private PatientService patientService;
 
+    @Mock
+    private DoctorService doctorService;
+
+    @Mock
+    private ClinicStaffService clinicStaffService;
+
     @InjectMocks
     private NotificationController controller;
 
     private Notification notification;
     private Patient patient;
+    private Doctor doctor;
+    private ClinicStaff clinicStaff;
     private PatientTicket ticket;
     private Appointment appointment;
 
     @BeforeEach
     void setUp() {
         patient = mock(Patient.class);
+        doctor = mock(Doctor.class);
+        clinicStaff = mock(ClinicStaff.class);
         ticket = mock(PatientTicket.class);
         appointment = mock(Appointment.class);
 
@@ -74,6 +88,42 @@ class NotificationControllerTest {
     }
 
     @Test
+    void create_ShouldReturnCreatedNotification_WhenRecipientIsDoctor() {
+        Notification doctorNotification = new Notification.Builder()
+                .copy(notification)
+                .setPatient(null)
+                .setDoctor(doctor)
+                .build();
+
+        when(notificationService.create(any(Notification.class))).thenReturn(doctorNotification);
+
+        ResponseEntity<Notification> response = controller.create(doctorNotification);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(doctor, response.getBody().getDoctor());
+        verify(notificationService, times(1)).create(any(Notification.class));
+    }
+
+    @Test
+    void create_ShouldReturnCreatedNotification_WhenRecipientIsClinicStaff() {
+        Notification staffNotification = new Notification.Builder()
+                .copy(notification)
+                .setPatient(null)
+                .setClinicStaff(clinicStaff)
+                .build();
+
+        when(notificationService.create(any(Notification.class))).thenReturn(staffNotification);
+
+        ResponseEntity<Notification> response = controller.create(staffNotification);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(clinicStaff, response.getBody().getClinicStaff());
+        verify(notificationService, times(1)).create(any(Notification.class));
+    }
+
+    @Test
     void create_ShouldReturnBadRequest_WhenMessageIsBlank() {
         Notification invalid = new Notification.Builder()
                 .copy(notification)
@@ -87,10 +137,24 @@ class NotificationControllerTest {
     }
 
     @Test
-    void create_ShouldReturnBadRequest_WhenPatientIsNull() {
+    void create_ShouldReturnBadRequest_WhenNoRecipientIsSet() {
         Notification invalid = new Notification.Builder()
                 .copy(notification)
                 .setPatient(null)
+                .build();
+
+        ResponseEntity<Notification> response = controller.create(invalid);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void create_ShouldReturnBadRequest_WhenMoreThanOneRecipientIsSet() {
+        Notification invalid = new Notification.Builder()
+                .copy(notification)
+                .setPatient(patient)
+                .setDoctor(doctor)
                 .build();
 
         ResponseEntity<Notification> response = controller.create(invalid);
@@ -254,6 +318,78 @@ class NotificationControllerTest {
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         verify(patientService, times(1)).read(patientId);
+        verifyNoInteractions(notificationService);
+    }
+
+    // ---------- findByDoctor ----------
+
+    @Test
+    void findByDoctor_ShouldReturnNotifications_WhenDoctorExists() {
+        int doctorId = 7;
+        Notification doctorNotification = new Notification.Builder()
+                .copy(notification)
+                .setPatient(null)
+                .setDoctor(doctor)
+                .build();
+        List<Notification> doctorNotifications = List.of(doctorNotification);
+
+        when(doctorService.read(doctorId)).thenReturn(doctor);
+        when(notificationService.findByDoctor(doctor)).thenReturn(doctorNotifications);
+
+        ResponseEntity<List<Notification>> response = controller.findByDoctor(doctorId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        verify(doctorService, times(1)).read(doctorId);
+        verify(notificationService, times(1)).findByDoctor(doctor);
+    }
+
+    @Test
+    void findByDoctor_ShouldReturnNotFound_WhenDoctorDoesNotExist() {
+        int doctorId = 999;
+        when(doctorService.read(doctorId)).thenReturn(null);
+
+        ResponseEntity<List<Notification>> response = controller.findByDoctor(doctorId);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        verify(doctorService, times(1)).read(doctorId);
+        verifyNoInteractions(notificationService);
+    }
+
+    // ---------- findByClinicStaff ----------
+
+    @Test
+    void findByClinicStaff_ShouldReturnNotifications_WhenClinicStaffExists() {
+        int staffId = 9;
+        Notification staffNotification = new Notification.Builder()
+                .copy(notification)
+                .setPatient(null)
+                .setClinicStaff(clinicStaff)
+                .build();
+        List<Notification> staffNotifications = List.of(staffNotification);
+
+        when(clinicStaffService.read(staffId)).thenReturn(clinicStaff);
+        when(notificationService.findByClinicStaff(clinicStaff)).thenReturn(staffNotifications);
+
+        ResponseEntity<List<Notification>> response = controller.findByClinicStaff(staffId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        verify(clinicStaffService, times(1)).read(staffId);
+        verify(notificationService, times(1)).findByClinicStaff(clinicStaff);
+    }
+
+    @Test
+    void findByClinicStaff_ShouldReturnNotFound_WhenClinicStaffDoesNotExist() {
+        int staffId = 999;
+        when(clinicStaffService.read(staffId)).thenReturn(null);
+
+        ResponseEntity<List<Notification>> response = controller.findByClinicStaff(staffId);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        verify(clinicStaffService, times(1)).read(staffId);
         verifyNoInteractions(notificationService);
     }
 
